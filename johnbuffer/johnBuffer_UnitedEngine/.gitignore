@@ -1,0 +1,8 @@
+build/
+*.dll
+*.exe
+*.o
+*.depend
+*.cbp
+*.layout
+build/

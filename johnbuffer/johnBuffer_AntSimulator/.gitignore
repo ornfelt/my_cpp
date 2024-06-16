@@ -1,0 +1,8 @@
+build/
+.idea/
+cmake-*/
+.vscode
+.clangd
+compile_commands.json
+.DS_Store
+demo*/
