@@ -48,3 +48,7 @@ https://github.com/johnBuffer/Light
 https://github.com/johnBuffer/FastVersatileContainer
 https://github.com/johnBuffer/cpp-opencl-wrapper
 https://github.com/johnBuffer/Array
+
+# misprit7
+https://github.com/misprit7/smarty
+
