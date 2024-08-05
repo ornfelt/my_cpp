@@ -1,3 +1,3 @@
-/home/jonas/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/OpenGL_SDL_Movement.dir
-/home/jonas/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/edit_cache.dir
-/home/jonas/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/rebuild_cache.dir
+C:/Users/jonas/OneDrive/Documents/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/OpenGL_SDL_Movement.dir
+C:/Users/jonas/OneDrive/Documents/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/jonas/OneDrive/Documents/Code2/C++/my_cpp/my_stuff/simple_game/build/CMakeFiles/ZERO_CHECK.dir
