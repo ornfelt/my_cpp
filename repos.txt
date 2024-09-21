@@ -48,7 +48,31 @@ https://github.com/johnBuffer/Light
 https://github.com/johnBuffer/FastVersatileContainer
 https://github.com/johnBuffer/cpp-opencl-wrapper
 https://github.com/johnBuffer/Array
+https://github.com/johnBuffer/DFT-SFML
+https://github.com/johnBuffer/StarTravelSFML
 
 # misprit7
 https://github.com/misprit7/smarty
+
+# Kofybrek
+https://www.youtube.com/watch?v=o_J-0p9uoSg
+
+https://github.com/Kofybrek/Super-Mario-Bros
+https://github.com/Kofybrek/Pacman
+https://github.com/Kofybrek/Flappy-bird-AI
+https://github.com/Kofybrek/Raycasting
+https://github.com/Kofybrek/Neural-network
+https://github.com/Kofybrek/Tetris
+https://github.com/Kofybrek/Pathfinding
+https://github.com/Kofybrek/Space-invaders
+https://github.com/Kofybrek/New-Raycasting
+https://github.com/Kofybrek/Minesweeper
+https://github.com/Kofybrek/1000-subscribers-visualization
+https://github.com/Kofybrek/Snake-game-AI
+https://github.com/Kofybrek/Frogger
+
+# EvanatorM
+https://www.youtube.com/watch?v=v0Ks1dCMlAA&ab_channel=WSALEvan
+
+https://github.com/EvanatorM/ScuffedMinecraft
 
