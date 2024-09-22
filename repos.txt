@@ -76,3 +76,8 @@ https://www.youtube.com/watch?v=v0Ks1dCMlAA&ab_channel=WSALEvan
 
 https://github.com/EvanatorM/ScuffedMinecraft
 
+# random
+https://github.com/SHShim0513/Snake
+https://github.com/Kofybrek/Snake-game-AI
+https://github.com/WorldEditor50/snakeAI
+

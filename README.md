@@ -182,3 +182,12 @@ Kofybrek_Tetris [Kofybrek/Kofybrek_Tetris](Kofybrek/Kofybrek_Tetris)
 EvanatorM_ScuffedMinecraft [EvanatorM/EvanatorM_ScuffedMinecraft](EvanatorM/EvanatorM_ScuffedMinecraft)
 
 
+Kofybrek_Snake-game-AI [random/Kofybrek_Snake-game-AI](random/Kofybrek_Snake-game-AI)
+
+
+SHShim0513_Snake [random/SHShim0513_Snake](random/SHShim0513_Snake)
+
+
+WorldEditor50_snakeAI [random/WorldEditor50_snakeAI](random/WorldEditor50_snakeAI)
+
+
