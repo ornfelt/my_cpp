@@ -1,8 +1,0 @@
-NAME
-Origin x
-Origin y
-Sprite height
-Sprite width
-Texture x
-Texture y
-Total frames

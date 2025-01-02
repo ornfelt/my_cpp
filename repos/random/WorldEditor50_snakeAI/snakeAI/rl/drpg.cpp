@@ -3,14 +3,11 @@
 #include "loss.h"
 
 RL::DRPG::DRPG(std::size_t stateDim_, std::size_t hiddenDim, std::size_t actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.9), exploringRate(1)
 {
-    gamma = 0.9;
-    exploringRate = 1;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     alpha = GradValue(actionDim, 1);
     alpha.val.fill(1);
-    entropy0 = -0.02*std::log(0.02);
+    entropy0 = RL::entropy(0.25);
     lstm = LSTM::_(stateDim, hiddenDim, hiddenDim, true);
     h = Tensor(hiddenDim, 1);
     c = Tensor(hiddenDim, 1);
@@ -34,7 +31,7 @@ RL::Tensor &RL::DRPG::noiseAction(const RL::Tensor &state)
 RL::Tensor &RL::DRPG::gumbelMax(const RL::Tensor &state)
 {
     Tensor& out = policyNet.forward(state, true);
-    return gumbelSoftmax(out, exploringRate);
+    return gumbelSoftmax(out, alpha.val);
 }
 
 RL::Tensor &RL::DRPG::action(const Tensor &state)
@@ -59,13 +56,14 @@ void RL::DRPG::reinforce(std::vector<Step>& x, float learningRate)
     for (std::size_t t = 0; t < x.size(); t++) {
         const Tensor &prob = x[t].action;
         int k = x[t].action.argmax();
-        alpha.g[k] += (-prob[k]*std::log(prob[k] + 1e-8) - entropy0)*alpha[t];
+        alpha.g[k] += (RL::entropy(prob[k]) - entropy0)*alpha[k];
         x[t].action[k] = prob[k]*(discountedReward[t] - u);
         Tensor &out = policyNet.forward(x[t].state, false);
-        policyNet.backward(Loss::CrossEntropy(out, x[t].action));
-        policyNet.gradient(x[t].state, x[t].action);
+        Tensor dLoss = Loss::CrossEntropy::df(out, x[t].action);
+        policyNet.backward(dLoss);
+        policyNet.gradient(x[t].state, dLoss);
     }
-    alpha.RMSProp(1e-4, 0.9, 0);
+    alpha.RMSProp(1e-5, 0.9, 0);
 #if 1
     std::cout<<"alpha:";
     alpha.val.printValue();

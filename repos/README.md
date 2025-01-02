@@ -141,45 +141,6 @@ johnBuffer_ZTyper2 [johnbuffer/johnBuffer_ZTyper2](johnbuffer/johnBuffer_ZTyper2
 misprit7_smarty [misprit7/misprit7_smarty](misprit7/misprit7_smarty)
 
 
-Kofybrek_1000-subscribers-visualization [Kofybrek/Kofybrek_1000-subscribers-visualization](Kofybrek/Kofybrek_1000-subscribers-visualization)
-
-
-Kofybrek_Flappy-bird-AI [Kofybrek/Kofybrek_Flappy-bird-AI](Kofybrek/Kofybrek_Flappy-bird-AI)
-
-
-Kofybrek_Frogger [Kofybrek/Kofybrek_Frogger](Kofybrek/Kofybrek_Frogger)
-
-
-Kofybrek_Minesweeper [Kofybrek/Kofybrek_Minesweeper](Kofybrek/Kofybrek_Minesweeper)
-
-
-Kofybrek_Neural-network [Kofybrek/Kofybrek_Neural-network](Kofybrek/Kofybrek_Neural-network)
-
-
-Kofybrek_New-Raycasting [Kofybrek/Kofybrek_New-Raycasting](Kofybrek/Kofybrek_New-Raycasting)
-
-
-Kofybrek_Pacman [Kofybrek/Kofybrek_Pacman](Kofybrek/Kofybrek_Pacman)
-
-
-Kofybrek_Pathfinding [Kofybrek/Kofybrek_Pathfinding](Kofybrek/Kofybrek_Pathfinding)
-
-
-Kofybrek_Raycasting [Kofybrek/Kofybrek_Raycasting](Kofybrek/Kofybrek_Raycasting)
-
-
-Kofybrek_Snake-game-AI [Kofybrek/Kofybrek_Snake-game-AI](Kofybrek/Kofybrek_Snake-game-AI)
-
-
-Kofybrek_Space-invaders [Kofybrek/Kofybrek_Space-invaders](Kofybrek/Kofybrek_Space-invaders)
-
-
-Kofybrek_Super-Mario-Bros [Kofybrek/Kofybrek_Super-Mario-Bros](Kofybrek/Kofybrek_Super-Mario-Bros)
-
-
-Kofybrek_Tetris [Kofybrek/Kofybrek_Tetris](Kofybrek/Kofybrek_Tetris)
-
-
 EvanatorM_ScuffedMinecraft [EvanatorM/EvanatorM_ScuffedMinecraft](EvanatorM/EvanatorM_ScuffedMinecraft)
 
 
@@ -193,5 +154,14 @@ SHShim0513_Snake [random/SHShim0513_Snake](random/SHShim0513_Snake)
 
 
 WorldEditor50_snakeAI [random/WorldEditor50_snakeAI](random/WorldEditor50_snakeAI)
+
+
+Bogdanctx_Newton-In-The-Maze [bogdanctx/Bogdanctx_Newton-In-The-Maze](bogdanctx/Bogdanctx_Newton-In-The-Maze)
+
+
+Bogdanctx_Radar-Contact [bogdanctx/Bogdanctx_Radar-Contact](bogdanctx/Bogdanctx_Radar-Contact)
+
+
+Bogdanctx_sorting-algorithms [bogdanctx/Bogdanctx_sorting-algorithms](bogdanctx/Bogdanctx_sorting-algorithms)
 
 

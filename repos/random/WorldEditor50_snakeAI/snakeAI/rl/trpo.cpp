@@ -4,12 +4,10 @@
 
 
 RL::TRPO::TRPO(int stateDim_, int hiddenDim, int actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.99)
 {
-    gamma = 0.99;
     lmbda = 0.95;
     learningSteps = 0;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     annealing = ExpAnnealing(0.01, 0.12);
     alpha = GradValue(actionDim, 1);
     alpha.val.fill(1);
@@ -77,7 +75,7 @@ void RL::TRPO::learn(std::vector<RL::Step> &x, float learningRate)
             qTarget[k] = x[i].reward + gamma*vn[k];
         }
         tdTarget[i] = qTarget[k];
-        critic.backward(Loss::MSE(qTarget, v));
+        critic.backward(Loss::MSE::df(qTarget, v));
         critic.gradient(x[i].state, qTarget);
     }
     critic.RMSProp(1e-3, 0.9, 0);

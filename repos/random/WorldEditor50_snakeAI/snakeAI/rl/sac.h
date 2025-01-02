@@ -13,11 +13,14 @@
 #include "rl_basic.h"
 #include "parameter.hpp"
 #include "annealing.hpp"
+#include "layer.h"
 
 namespace RL {
 
 class SAC
 {
+public:
+    static constexpr int max_qnet_num = 4;
 public:
     SAC(){}
     explicit SAC(std::size_t stateDim, std::size_t hiddenDim, std::size_t actionDim);
@@ -26,11 +29,10 @@ public:
                   const Tensor& nextState,
                   float reward,
                   bool done);
-    void perceive(const std::vector<Transition>& x);
     Tensor& eGreedyAction(const Tensor& state);
     Tensor& gumbelMax(const Tensor &state);
     Tensor& action(const Tensor &state);
-    void experienceReplay(const Transition& x);
+    void experienceReplay(const Transition& x, float beta);
     void learn(std::size_t maxMemorySize = 4096,
                std::size_t replaceTargetIter = 256,
                std::size_t batchSize = 32,
@@ -48,10 +50,8 @@ protected:
     ExpAnnealing annealing;
     GradValue alpha;
     Net actor;
-    Net critic1;
-    Net critic1Target;
-    Net critic2;
-    Net critic2Target;
+    Net critics[max_qnet_num];
+    Net criticsTarget[max_qnet_num];
 };
 
 }

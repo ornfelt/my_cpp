@@ -5,11 +5,8 @@
 #include "concat.hpp"
 
 RL::DQN::DQN(std::size_t stateDim_, std::size_t hiddenDim, std::size_t actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.99), exploringRate(1)
 {
-    gamma = 0.99;
-    exploringRate = 1;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
 #if 0
     QMainNet = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
                    TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, true),
@@ -21,13 +18,6 @@ RL::DQN::DQN(std::size_t stateDim_, std::size_t hiddenDim, std::size_t actionDim
                      TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, false),
                      Layer<Tanh>::_(hiddenDim, hiddenDim, true, false),
                      TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, false),
-                     Layer<Sigmoid>::_(hiddenDim, actionDim, true, false));
-#elif 0
-    QMainNet = Net(Attention<16>::_(stateDim, 4, true),
-                   TanhNorm<Sigmoid>::_(16*4, hiddenDim, true, true),
-                   Layer<Sigmoid>::_(hiddenDim, actionDim, true, true));
-    QTargetNet = Net(Attention<16>::_(stateDim, 4, false),
-                     TanhNorm<Sigmoid>::_(16*4, hiddenDim, true, false),
                      Layer<Sigmoid>::_(hiddenDim, actionDim, true, false));
 #else
     /* it still performs well if stop exploring enviroment */
@@ -86,7 +76,7 @@ void RL::DQN::experienceReplay(const Transition& x)
         qTarget[i] = x.reward + gamma * v[k];
     }
     /* train QMainNet */
-    QMainNet.backward(Loss::MSE(out, qTarget));
+    QMainNet.backward(Loss::MSE::df(out, qTarget));
     QMainNet.gradient(x.state, qTarget);
     return;
 }

@@ -1,0 +1,6 @@
+test0.txt -> N=10^8 | max = 10^8
+test1.txt -> N=10^8 | max = 10^3
+test2.txt -> N=10^3 | max = 10^6
+test3.txt -> N=10^8 | max=10^5, min=-10^5
+
+Link la input-uri: https://drive.google.com/drive/folders/1LvkkqgZ66HTdA5sL1wpsj32apbUu3brq?usp=sharing

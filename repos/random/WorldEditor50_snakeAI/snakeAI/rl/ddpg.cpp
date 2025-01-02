@@ -3,12 +3,9 @@
 #include "loss.h"
 
 RL::DDPG::DDPG(std::size_t stateDim_, std::size_t hiddenDim, std::size_t actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.99), exploringRate(1)
 {
-    gamma = 0.99;
     beta = 1;
-    exploringRate = 1;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     /* actor: a = P(s, theta) */
     actorP = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
                  LayerNorm<Sigmoid, LN::Pre>::_(hiddenDim, hiddenDim, true, true),
@@ -71,20 +68,20 @@ void RL::DDPG::experienceReplay(const Transition& x)
             ct[k] = x.reward + gamma*cq[k];
         }
         Tensor &cp = criticP.forward(x.state);
-        criticP.backward(Loss::MSE(cp, ct));
+        criticP.backward(Loss::MSE::df(cp, ct));
         criticP.gradient(x.state, ct);
     }
 
     /* train actor */
     {
-        Tensor &ap = actorP.forward(x.state);
+        Tensor &p = actorP.forward(x.state);
         Tensor& q = criticP.forward(x.state);
-        Tensor loss(actionDim, 1);
+        Tensor dLoss(actionDim, 1);
         for (std::size_t i = 0; i < actionDim; i++) {
-            loss[i] = ap[i]*q[i];
+            dLoss[i] = p[i] - p[i]*q[i];
         }
-        actorP.backward(loss);
-        actorP.gradient(x.state, loss);
+        actorP.backward(dLoss);
+        actorP.gradient(x.state, dLoss);
     }
 
     return;

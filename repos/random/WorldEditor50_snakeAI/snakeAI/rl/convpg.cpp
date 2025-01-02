@@ -4,11 +4,8 @@
 #include "loss.h"
 
 RL::ConvPG::ConvPG(std::size_t stateDim_, std::size_t hiddenDim, std::size_t actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.9), exploringRate(1)
 {
-    gamma = 0.9;
-    exploringRate = 1;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     alpha = GradValue(actionDim, 1);
     alpha.val.fill(1);
     entropy0 = -0.05*std::log(0.05);
@@ -53,14 +50,15 @@ void RL::ConvPG::reinforce(std::vector<Step>& x, float learningRate)
         discountedReward[i] = r;
     }
     float u = discountedReward.mean();
-    for (std::size_t i = 0; i < x.size(); i++) {
-        const Tensor &prob = x[i].action;
-        int k = x[i].action.argmax();
-        alpha.g[k] += -prob[k]*std::log(prob[k] + 1e-8) - entropy0;
-        x[i].action[k] = prob[k]*(discountedReward[i] - u);
-        Tensor &out = policyNet.forward(x[i].state);
-        policyNet.backward(Loss::CrossEntropy(out, x[i].action));
-        policyNet.gradient(x[i].state, x[i].action);
+    for (std::size_t t = 0; t < x.size(); t++) {
+        const Tensor &prob = x[t].action;
+        int k = x[t].action.argmax();
+        alpha.g[k] += (RL::entropy(prob[k]) - entropy0)*alpha[k];
+        x[t].action[k] = prob[k]*(discountedReward[t] - u);
+        Tensor &out = policyNet.forward(x[t].state);
+        Tensor dLoss = Loss::CrossEntropy::df(out, x[t].action);
+        policyNet.backward(dLoss);
+        policyNet.gradient(x[t].state, dLoss);
     }
     alpha.RMSProp(1e-4, 0.9, 0);
 #if 0

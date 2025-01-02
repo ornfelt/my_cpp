@@ -2,43 +2,28 @@
 #include "layer.h"
 #include "loss.h"
 
-#define USE_DECAY 1
-
 RL::SAC::SAC(size_t stateDim_, size_t hiddenDim, size_t actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.99), exploringRate(1)
 {
-    gamma = 0.99;
-    exploringRate = 1;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     annealing = ExpAnnealing(0.01, 0.12, 1e-4);
     alpha = GradValue(actionDim, 1);
     alpha.val.fill(1);
-#if USE_DECAY
-    //entropy0 = -0.12*std::log(0.12);
-    entropy0 = -0.11*std::log(0.11);
-#else
-    entropy0 = -0.05*std::log(0.05);
-#endif
+    entropy0 =  RL::entropy(0.1);
     actor = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
+                LayerNorm<Sigmoid, LN::Post>::_(hiddenDim, hiddenDim, true, true),
+                Layer<Tanh>::_(hiddenDim, hiddenDim, true, true),
                 LayerNorm<Sigmoid, LN::Post>::_(hiddenDim, hiddenDim, true, true),
                 Layer<Softmax>::_(hiddenDim, actionDim, true, true));
 
-    critic1 = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
-                  TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, true),
-                  Layer<Sigmoid>::_(hiddenDim, actionDim, true, true));
-    critic2 = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
-                  TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, true),
-                  Layer<Sigmoid>::_(hiddenDim, actionDim, true, true));
-
-    critic1Target = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, false),
-                        TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, false),
-                        Layer<Sigmoid>::_(hiddenDim, actionDim, true, false));
-    critic2Target = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, false),
-                        TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, false),
-                        Layer<Sigmoid>::_(hiddenDim, actionDim, true, false));
-
-    critic1.copyTo(critic1Target);
-    critic2.copyTo(critic2Target);
+    for (int i = 0; i < max_qnet_num; i++) {
+        critics[i] = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
+                      TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, true),
+                      Layer<Sigmoid>::_(hiddenDim, actionDim, true, true));
+        criticsTarget[i] = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, false),
+                            TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, false),
+                            Layer<Sigmoid>::_(hiddenDim, actionDim, true, false));
+        critics[i].copyTo(criticsTarget[i]);
+    }
 }
 
 void RL::SAC::perceive(const Tensor& state,
@@ -48,14 +33,6 @@ void RL::SAC::perceive(const Tensor& state,
                        bool done)
 {
     memories.push_back(Transition(state, action, nextState, reward, done));
-    return;
-}
-
-void RL::SAC::perceive(const std::vector<RL::Transition> &x)
-{
-    for (int t = 0; t >= 0; t--) {
-        memories.push_back(x[t]);
-    }
     return;
 }
 
@@ -76,7 +53,7 @@ RL::Tensor& RL::SAC::action(const RL::Tensor &state)
     return actor.forward(state);
 }
 
-void RL::SAC::experienceReplay(const RL::Transition &x)
+void RL::SAC::experienceReplay(const RL::Transition &x, float beta)
 {
     /* train critic net */
 #if 0
@@ -84,11 +61,15 @@ void RL::SAC::experienceReplay(const RL::Transition &x)
         /* select action */
         const Tensor& nextProb = actor.forward(x.nextState);
         /* select value */;
-        const Tensor& q1 = critic1Target.forward(x.nextState);
-        const Tensor& q2 = critic2Target.forward(x.nextState);
+        Tensor q(actionDim, 1);
+        for (int i = 0; i < max_qnet_num; i++) {
+            const Tensor& qi = critics[i].forward(x.state);
+            q += qi;
+        }
+        q /= MAX_CRITICS;
         Tensor nextValue(actionDim, 1);
         for (int i = 0; i < actionDim; i++) {
-            nextValue[i] = nextProb[i]*(std::min(q1[i], q2[i]) - alpha[i]*std::log(nextProb[i] + 1e-8));
+            nextValue[i] = nextProb[i]*(q[i] - alpha[i]*std::log(nextProb[i]));
         }
         int k = x.action.argmax();
         Tensor reward(actionDim, 1);
@@ -101,61 +82,78 @@ void RL::SAC::experienceReplay(const RL::Transition &x)
                 qTarget[i] = reward[i] + gamma*nextValue[i];
             }
         }
-        const Tensor &out1 = critic1.forward(x.state);
-        critic1.backward(Loss::MSE(out1, qTarget));
-        critic1.gradient(x.state, qTarget);
-        const Tensor &out2 = critic2.forward(x.state);
-        critic2.backward(Loss::MSE(out2, qTarget));
-        critic2.gradient(x.state, qTarget);
+        for (int i = 0; i < max_qnet_num; i++) {
+            const Tensor &out = critics[i].forward(x.state);
+            critics[i].backward(Loss::MSE::df(out, qTarget));
+            critics[i].gradient(x.state, qTarget);
+        }
     }
 #else
     {
-        std::size_t i = x.action.argmax();
         /* select action */
         const Tensor& nextProb = actor.forward(x.nextState);
         std::size_t k = nextProb.argmax();
         /* select value */;
-        const Tensor& q1 = critic1Target.forward(x.nextState);
-        const Tensor& q2 = critic2Target.forward(x.nextState);
-        float q = std::min(q1[k], q2[k]);
+        float q = 0;
+        for (int i = 0; i < max_qnet_num; i++) {
+            const Tensor& qi = criticsTarget[i].forward(x.nextState);
+            q += qi[k];
+        }
+        q /= max_qnet_num;
         float nextValue = 0;
-        nextValue = nextProb[k]*(q - alpha[k]*std::log(nextProb[k] + 1e-8));
+        //nextValue = (nextProb[k] + beta)*(q - alpha[k]*std::log(nextProb[k] + beta));
+        nextValue = Metrics::KL(nextProb[k] + beta, std::exp(q))*alpha[k];
         float qTarget = 0;
         if (x.done) {
             qTarget = x.reward;
         } else {
             qTarget = x.reward + gamma*nextValue;
         }
-        const Tensor &out1 = critic1.forward(x.state);
-        Tensor qTarget1 = out1;
-        qTarget1[i] = qTarget;
-        critic1.backward(Loss::MSE(out1, qTarget1));
-        critic1.gradient(x.state, qTarget1);
-        const Tensor &out2 = critic2.forward(x.state);
-        Tensor qTarget2 = out2;
-        qTarget2[i] = qTarget;
-        critic2.backward(Loss::MSE(out2, qTarget2));
-        critic2.gradient(x.state, qTarget2);
+        k = x.action.argmax();
+        for (int i = 0; i < max_qnet_num; i++) {
+            const Tensor &out = critics[i].forward(x.state);
+            Tensor p = out;
+            p[k] = qTarget;
+            critics[i].backward(Loss::MSE::df(out, p));
+            critics[i].gradient(x.state, p);
+        }
     }
 #endif
     /* train policy net */
     {
-        const Tensor& prob = actor.forward(x.state);
-        const Tensor& q1 = critic1.forward(x.state);
-        const Tensor& q2 = critic2.forward(x.state);
+        const Tensor& p = actor.forward(x.state);
         Tensor loss(actionDim, 1);
-        for (int i = 0; i < actionDim; i++) {
-            float q = std::min(q1[i], q2[i]);
-            loss[i] = prob[i]*(q - alpha[i]*std::log(prob[i] + 1e-8));
+        Tensor q(actionDim, 1);
+        for (int i = 0; i < max_qnet_num; i++) {
+            const Tensor& qi = critics[i].forward(x.state);
+            q += qi;
         }
+        q /= max_qnet_num;
+        for (int i = 0; i < actionDim; i++) {
+            /*
+                L(p) = KL(p||e^q) = -p*log(p/e^q) = -p*log(p) + p*q
+                L(p) = p*q - alpha*p*log(p))
+                time shift loss:
+                        focus on current policy
+                        e^(beta*D)[L] = Σ(beta*D)^n/n!)L(p) = L(p + beta)
+            */
+            //float dL = (p[i] + beta)*(q - alpha[i]*std::log(p[i] + beta));
+            float dL = Metrics::KL(p[i] + beta, std::exp(q[i]))*alpha[i];
+            loss[i] = p[i] - dL;
+        }
+        int k = p.argmax();
+        float advantage = 0;
+        advantage = beta*(1.0/(1 - 0.5*x.reward) - q[k]);
+        loss[k] += advantage;
         actor.backward(loss);
         actor.gradient(x.state, loss);
     }
+
     /* alpha */
     {
         const Tensor& prob = x.action;
         for (int i = 0; i < actionDim; i++) {
-            alpha.g[i] += (-prob[i]*std::log(prob[i] + 1e-8) - entropy0)*alpha[i];
+            alpha.g[i] += (RL::entropy(prob[i]) - entropy0)*alpha[i];
         }
     }
     return;
@@ -168,35 +166,31 @@ void RL::SAC::learn(size_t maxMemorySize, size_t replaceTargetIter, size_t batch
     }
 
     if (learningSteps % replaceTargetIter == 0) {
-        std::cout<<"update target net"<<std::endl;
         /* update */
-        critic1.softUpdateTo(critic1Target, 1e-3);
-        critic2.softUpdateTo(critic2Target, 1e-4);
+        for (int i = 0; i < max_qnet_num; i++) {
+            critics[i].softUpdateTo(criticsTarget[i], (i + 1)*1e-4);
+        }
         learningSteps = 0;
     }
     /* experience replay */
     std::uniform_int_distribution<int> uniform(0, memories.size() - 1);
     for (std::size_t i = 0; i < batchSize; i++) {
         int k = uniform(Random::engine);
-        experienceReplay(memories[k]);
+        float beta = float(k)/maxMemorySize;
+        experienceReplay(memories[k], beta);
     }
-#if USE_DECAY
-    float r = annealing.step();
-    actor.RMSProp(r, 0.9, r);
-    alpha.RMSProp(1e-5, 0.9, 0);
-#else
-    actor.RMSProp(0.1, 0.9, 0);
-    alpha.RMSProp(1e-4, 0.9, 0);
-#endif
+    actor.RMSProp(1e-2, 0.9, 0);
 #if 1
     std::cout<<"annealing:"<<annealing.val<<",alpha:";
     alpha.val.printValue();
 #endif
-    critic1.RMSProp(1e-3, 0.9, 0);
-    critic2.RMSProp(1e-3, 0.9, 0);
+    alpha.RMSProp(1e-5, 0.9, 0);
+    for (int i = 0; i < max_qnet_num; i++) {
+        critics[i].RMSProp(1e-3, 0.9, 0);
+    }
     /* reduce memory */
     if (memories.size() > maxMemorySize) {
-        std::size_t k = memories.size()/4;
+        std::size_t k = memories.size()/16;
         for (std::size_t i = 0; i < k; i++) {
             memories.pop_front();
         }
@@ -210,17 +204,20 @@ void RL::SAC::learn(size_t maxMemorySize, size_t replaceTargetIter, size_t batch
 void RL::SAC::save()
 {
     actor.save("sac_actor");
-    critic1.save("sac_critic1");
-    critic2.save("sac_critic2");
+    for (int i = 0; i < max_qnet_num; i++) {
+        std::string critiscName = std::string("sac_critic_") + std::to_string(i);
+        critics[i].save(critiscName);
+    }
     return;
 }
 
 void RL::SAC::load()
 {
     actor.load("sac_actor");
-    critic1.load("sac_critic1");
-    critic2.load("sac_critic2");
-    critic1.copyTo(critic1Target);
-    critic2.copyTo(critic2Target);
+    for (int i = 0; i < max_qnet_num; i++) {
+        std::string critiscName = std::string("sac_critic_") + std::to_string(i);
+        critics[i].load(critiscName);
+        critics[i].copyTo(criticsTarget[i]);
+    }
     return;
 }

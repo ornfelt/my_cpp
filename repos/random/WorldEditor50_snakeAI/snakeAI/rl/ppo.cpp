@@ -3,19 +3,13 @@
 #include "loss.h"
 
 RL::PPO::PPO(int stateDim_, int hiddenDim, int actionDim_)
+    :stateDim(stateDim_), actionDim(actionDim_), gamma(0.99),
+      beta(0.5),delta(0.01),epsilon(0.2), exploringRate(1),learningSteps(0)
 {
-    gamma = 0.99;
-    beta = 0.5;
-    delta = 0.01;
-    epsilon = 0.2;
-    exploringRate = 1;
-    learningSteps = 0;
-    stateDim = stateDim_;
-    actionDim = actionDim_;
     annealing = ExpAnnealing(0.01, 0.12);
     alpha = GradValue(actionDim, 1);
     alpha.val.fill(1);
-    entropy0 = -0.12*std::log(0.12);
+    entropy0 = RL::entropy(0.1);
 
     actorP = Net(Layer<Tanh>::_(stateDim, hiddenDim, true, true),
                  TanhNorm<Sigmoid>::_(hiddenDim, hiddenDim, true, true),
@@ -98,19 +92,20 @@ void RL::PPO::learnWithKLpenalty(std::vector<RL::Step> &trajectory, float learni
             Tensor &v1 = critic.forward(criticState);
             r[k] = trajectory[t].reward + 0.99*v1[k];
         }
-        critic.backward(Loss::MSE(v, r));
+        critic.backward(Loss::MSE::df(v, r));
         critic.gradient(criticState, r);
         /* temperture parameter */
         Tensor& q = trajectory[t].action;
-        alpha.g[k] += (-q[k]*std::log(q[k] + 1e-8) - entropy0)*alpha[k];
+        alpha.g[k] += (RL::entropy(q[k]) - entropy0)*alpha[k];
         /* actor */
         Tensor p = actorP.forward(trajectory[t].state);
         float kl = p[k] * std::log(p[k]/q[k] + 1e-9);
         float ratio = std::exp(std::log(p[k]) - std::log(q[k]) + 1e-9);
-        q[k] *= ratio*advantage - beta*kl;
+        Tensor dLoss(actionDim, 1);
+        dLoss[k] = p[k] - ratio*advantage + beta*kl;
+        actorP.backward(dLoss);
+        actorP.gradient(trajectory[t].state, dLoss);
         KLexpect += kl;
-        actorP.backward(Loss::CrossEntropy(p, q));
-        actorP.gradient(trajectory[t].state, q);
     }
     /* KL-Penalty */
     KLexpect /= float(trajectory.size());
@@ -149,9 +144,9 @@ void RL::PPO::learnWithClipObjective(std::vector<RL::Step> &trajectory, float le
         Tensor::concat(0, criticState,
                     trajectory[t].state,
                     trajectory[t].action);
-        /* advangtage */
+        /* advantage */
         Tensor v = critic.forward(criticState);
-        float adv = trajectory[t].reward - v[k];
+        float advantage = trajectory[t].reward - v[k];
         /* critic */
         Tensor r = v;
         if (t == end) {
@@ -163,18 +158,20 @@ void RL::PPO::learnWithClipObjective(std::vector<RL::Step> &trajectory, float le
             Tensor &v1 = critic.forward(criticState);
             r[k] = trajectory[t].reward + 0.99*v1[k];
         }
-        critic.backward(Loss::MSE(v, r));
+        critic.backward(Loss::MSE::df(v, r));
         critic.gradient(criticState, r);
         /* temperture parameter */
         Tensor& q = trajectory[t].action;
-        alpha.g[k] += (-q[k]*std::log(q[k] + 1e-8) - entropy0)*alpha[k];
+        alpha.g[k] += (RL::entropy(q[k]) - entropy0)*alpha[k];
         /* actor */
         Tensor p = actorP.forward(trajectory[t].state);
-        float ratio = std::exp(std::log(p[k]) - std::log(q[k]) + 1e-9);
-        ratio = std::min(ratio, RL::clip(ratio, 1 - epsilon, 1 + epsilon));
-        q[k] *= ratio * adv;
-        actorP.backward(Loss::CrossEntropy(p, q));
-        actorP.gradient(trajectory[t].state, q);
+        float ratio = std::exp(std::log(p[k]) - std::log(q[k]));
+        float surr1 = ratio*advantage;
+        float surr2 = RL::clip(ratio, 1 - epsilon, 1 + epsilon)*advantage;
+        Tensor dLoss(actionDim, 1);
+        dLoss[k] = p[k] - std::min(surr1, surr2);
+        actorP.backward(dLoss);
+        actorP.gradient(trajectory[t].state, dLoss);
     }
     float decay = annealing.step();
     actorP.RMSProp(learningRate, 0.9, decay);

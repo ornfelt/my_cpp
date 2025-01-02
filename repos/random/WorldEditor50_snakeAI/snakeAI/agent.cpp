@@ -1,6 +1,7 @@
 #include "agent.h"
 #include "environment.h"
 #include "rl/layer.h"
+
 Agent::Agent(Environment& env_, Snake &s):
     env(env_), snake(s),
     trainFlag(true)
@@ -21,12 +22,12 @@ Agent::Agent(Environment& env_, Snake &s):
     convdqn = RL::ConvDQN(stateDim, 16, 4);
     state = RL::Tensor(stateDim, 1);
     nextState = RL::Tensor(stateDim, 1);
-    dqn.load("./dqn");
-    dpg.load("./dpg");
-    ddpg.load("./ddpg_actor", "./ddpg_critic");
-    bpnn.load("./bpnn");
-    ppo.load("./ppo_actor", "./ppo_critic");
-    sac.load();
+    //dqn.load("./dqn");
+    //dpg.load("./dpg");
+    //ddpg.load("./ddpg_actor", "./ddpg_critic");
+    //bpnn.load("./bpnn");
+    //ppo.load("./ppo_actor", "./ppo_critic");
+    //sac.load();
 }
 
 Agent::~Agent()
@@ -442,11 +443,10 @@ int Agent::sacAction(int x, int y, int xt, int yt, float &totalReward)
             int xi = xn;
             int yi = yn;
             RL::Tensor& a = sac.gumbelMax(state);
-            //int k = a.argmax();
-            int k = RL::Random::categorical(a);
+            int k = a.argmax();
+            //int k = RL::Random::categorical(a);
             simulateMove(xn, yn, k);
             float r = env.reward0(xi, yi, xn, yn, xt, yt);
-            //float r = env.reward2(env.map, xi, yi, xn, yn, xt, yt);
             total += r;
             observe(nextState, xn, yn, xt, yt);
             if (env.map(xn, yn) == OBJ_BLOCK) {
@@ -487,7 +487,7 @@ int Agent::supervisedAction(int x, int y, int xt, int yt, float &totalReward)
             if (direct1 != direct2) {
                 RL::Tensor target(4, 1);
                 target[direct2] = 1;
-                bpnn.backward(RL::Loss::MSE(out, target));
+                bpnn.backward(RL::Loss::MSE::df(out, target));
                 bpnn.gradient(state, target);
                 m++;
             }
